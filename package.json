@@ -23,7 +23,7 @@
   ],
   "files": ["src", "dist", "index.d.ts"],
   "author": "keenjaan",
-  "license": "ISC",
+  "license": "MIT",
   "dependencies": {
     "pako": "^2.0.3"
   },
