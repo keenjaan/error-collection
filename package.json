@@ -5,7 +5,9 @@
   "main": "./dist/error-collection-umd.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "dev": "rollup -c -w"
+    "dev": "rollup -c -w",
+    "build": "rollup -c",
+    "prepublish": "rollup -c"
   },
   "homepage": "https://github.com/keenjaan/error-collection#readme",
   "repository": {
@@ -19,7 +21,7 @@
     "sdk",
     "typescript"
   ],
-  "files": ["src"],
+  "files": ["src", "dist", "index.d.ts"],
   "author": "keenjaan",
   "license": "ISC",
   "dependencies": {
