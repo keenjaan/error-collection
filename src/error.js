@@ -167,7 +167,7 @@ class Sentry {
             // console.log(s, '====')
             /**
              * onerror 的参数source包含域名，比如：
-             * http://10.0.132.176:5000/js/app.0d18de06.js 
+             * http://baidu.com/js/app.0d18de06.js 
              */
             const ob = _this.parseError(err)
             _this.upload(ob)

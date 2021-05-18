@@ -7,6 +7,11 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "dev": "rollup -c -w"
   },
+  "homepage": "https://github.com/keenjaan/error-collection#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/keenjaan/error-collection.git"
+  },
   "keywords": [
     "error",
     "upload",
