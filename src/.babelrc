@@ -1,0 +1,23 @@
+{
+  "presets": [ "@babel/env"
+    // [
+    //   "@babel/env",
+    //   {
+    //     "targets": {
+    //       "edge": "17",
+    //       "firefox": "60",
+    //       "chrome": "67",
+    //       "safari": "11.1"
+    //       /**
+    //        * you can also set browsers in package.json
+    //        * "browserslist": ["last 3 versions"]
+    //        * relative links:
+    //        * https://github.com/browserslist/browserslist
+    //        */
+    //     },
+    //     "corejs": 3,
+    //     "useBuiltIns": false
+    //   }
+    // ]
+  ]
+}
