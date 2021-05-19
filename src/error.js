@@ -169,8 +169,9 @@ class Sentry {
              * onerror 的参数source包含域名，比如：
              * http://baidu.com/js/app.0d18de06.js 
              */
-            const ob = _this.parseError(err)
-            _this.upload(ob)
+            const error = _this.parseError(err)
+            _this.upload({message: error.message, name: error.name, source: error.sourceURL, colno: error.column, lineno: error.line})
+            // _this.upload(ob)
             // _this.upload({message, name: err.name, source, colno, lineno})
             // this.captureException({message,name: error.name, source, colno,lineno})
         }
@@ -183,7 +184,6 @@ class Sentry {
             // 未捕获的promise对象可以自定义错误信息，归为一个分类
             // console.log(event.reason)
             _this.captureException(event.reason)
-            // const error = this.parseError(event.reason)
             // this.captureException({message: error.message, name: error.name, source: error.sourceURL, colno: error.column,lineno: error.line})
         })
         // 资源加载错误捕获
