@@ -385,7 +385,8 @@ class Sentry {
           }
           return ob
         })
-        query.record = r
+        // 只记录最近的200次记录
+        query.record = r.slice(-200)
         // console.log(query, '909090')
         // var output = window.pako.deflate(JSON.stringify(query));
         var output = deflate(JSON.stringify(query));
