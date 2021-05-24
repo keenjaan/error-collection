@@ -13,6 +13,8 @@ class Sentry {
         if (!(option.dsn && option.release)) {
             console.error('sentry init need dsn and release params')
         }
+        // 添加一个黑名单，用于记录异常场景的错误以减少服务端压力，比如重复上报错误
+        this.blackList = []
         this.dsn = option.dsn
         this.release = option.release
         this.environment = option.environment
@@ -81,7 +83,7 @@ class Sentry {
                 /**
                  * fetch 错误虽然没有意思，但是不能吃掉，否则外层不能正常捕获错误。
                  */
-                throw error; 
+                throw error;
             })
         }
     }
@@ -92,9 +94,9 @@ class Sentry {
         if (protocol === 'file:') return;
         // 处理XMLHttpRequest
         if (!window.XMLHttpRequest) {
-            return;  
+            return;
         }
-        let xmlhttp = window.XMLHttpRequest;    
+        let xmlhttp = window.XMLHttpRequest;
         // 保存原生send方法
         let _oldSend = xmlhttp.prototype.send;
         let _oldOpen = xmlhttp.prototype.open;
@@ -151,7 +153,7 @@ class Sentry {
     //             }
     //         }
     //         return originAddEventListener.call(this, type, wrappedListener, options)
-            
+
     //     }
     // }
     /**
@@ -167,7 +169,7 @@ class Sentry {
             // console.log(s, '====')
             /**
              * onerror 的参数source包含域名，比如：
-             * http://baidu.com/js/app.0d18de06.js 
+             * http://baidu.com/js/app.0d18de06.js
              */
             const error = _this.parseError(err)
             _this.upload({message: error.message, name: error.name, source: error.sourceURL, colno: error.column, lineno: error.line})
@@ -179,8 +181,8 @@ class Sentry {
         window.addEventListener('unhandledrejection', event => {
             // debugger
             // failed to fetch 的promise错误没有任何有用信息，拦截上报。在fetch封装里上报能获取更详细的信息。
-            if (event.reason.message === 'Failed to fetch') return 
-            // TODO 
+            if (event.reason.message === 'Failed to fetch') return
+            // TODO
             // 未捕获的promise对象可以自定义错误信息，归为一个分类
             // console.log(event.reason)
             _this.captureException(event.reason)
@@ -192,7 +194,7 @@ class Sentry {
          * 并执行该元素上的onerror()处理函数。这些error事件不会向上冒泡到window，
          * 不过能被window.addEventListener在捕获阶段捕获。
          */
-        window.addEventListener('error', event => { 
+        window.addEventListener('error', event => {
             // 过滤js error
             let target = event.target || event.srcElement;
             let isElementTarget = target instanceof HTMLScriptElement || target instanceof HTMLLinkElement || target instanceof HTMLImageElement;
@@ -202,7 +204,7 @@ class Sentry {
             // console.log('===event====', event.path, url)
             const path = event.path.map(item=>item.localName).filter(i=> Boolean(i))
             _this.staticUpload({reqUrl: url, path: path.reverse().join(',')})
-            
+
             // console.log(url);
             return true
         }, true);
@@ -245,7 +247,7 @@ class Sentry {
     // 错误日志上报, 解析error对象，生成name, message, source, col, line 等信息
     errorUpload(err, {tag} = {}) {
         if (this.isError(err)) {
-            const error = this.parseError(err) 
+            const error = this.parseError(err)
             this.upload({message: error.message, name: error.name, source: error.sourceURL, colno: error.column, lineno: error.line}, { tag })
         }
     }
@@ -407,7 +409,7 @@ class Sentry {
         // console.log('arr', arr)
         // const w = window.pako.inflate(arr, { to: "string" });
         // console.log(w, '121212121212')
-        
+
         // const str = `${queryString}&record=${JSON.stringify(r)}`
         const str = `${this.dsn}/e.gif?p=${b64encoded}`
         const img = new Image()
@@ -417,32 +419,44 @@ class Sentry {
     /**
      * 由于会上传用户行为（包含错误行为），所以对于循环报错的错误不应该上传给服务端（给服务端压力，每个用户，同一个错误不停上报，服务压力很大）
      * 对于记录用户行为，同一个错误记录太多对其他行为有干扰，因为受到cookie和http get长度限制，用户行为数据不能太大。
-     * 所以用户行为数据暂定100条，如果超过100条则截取，只能截取最新的记录（因为如果前100条记录没有发生错误的话，这样错误记录就被截掉，用户记录就没意义了）
+     * 所以用户行为数据暂定200条，如果超过200条则截取，只能截取最新的记录（因为如果前200条记录没有发生错误的话，这样错误记录就被截掉，用户记录就没意义了）
      * 对于同一个错误的定义是，下面所有参数的值都相同，所以根据下面这些值拼接成一个字符串就行。
      * 又要防止多个错误交替重复上报，所以这里策略是统计行为数据里所有的错误记录。对于用一个用户，同一个错误上报次数大于10次，则不在上报该错误。
      * 有的多个错误和短时间内触发，所以不能搞简单的节流，可能会漏掉需要上报的错误。
      * 所以对用户行为栈反向遍历，如果发现之前上报的错误与本次错误相同且上报时间差在1s以内，我们认为是重复上报；
      * 同时如果最近的三条记录都是与本次错误相同，可以认为可能是用户定时器里不停的报错，或者用户连续点击同一个按钮报错，获取页面公共方法报错。此时可以忽略
      */
-    shouldUpload(/*errId*/) {
+    shouldUpload(errId) {
         // console.log('23242424')
-        // 最近的三次行为与本次行为相同
-        // const r = this.record
-        // const l = r.length
-        // if (l >= 3 && (r[l-1].data.errId === errId) && (r[l-2].data.errId === errId) && (r[l-3].data.errId === errId)) return false
-        // if (errId === this.record[l-1].errId) {
-        //     if (Date.now() - this.record[l-1].data.createTime < 1000) {
-        //         return false
-        //     }
-        // }
-        // // 一次session，同一个错误上报次数大于5，暂停本次上报了。
-        //     let n = 0
-        //     this.record.forEach(i => {
-        //         if (i.data.errId === errId) {
-        //             n++
-        //         }
-        //     })
-        //     if (n > 5) return false
+        // 如果被黑名单记录的错误，直接拦截
+        if (this.blackList.includes(errId)) return false
+        // 最近1s内的三次错误行为与本次行为相同
+        const r = this.record.slice(0)
+        // 记录当前遍历的index值
+        let mapIndex = r.length
+        // 记录相同错误的列表
+        const re = []
+        while(r.length > 0 && re.length < 2) {
+          const item = r.pop()
+          // 如果是错误的类型, 且错误类型相同
+          if (item.type === 'e' && item.errId === errId) {
+            re.unshift({data: item, index: mapIndex - 1})
+          }
+          mapIndex = mapIndex - 1
+        }
+        // 之前发生的相同错误小于两次直接放行
+        if (re.length < 2) return true
+
+        // 一秒内触发3次相同错误被认为是异常的，应该拦截以减少服务器压力
+        if ((Date.now() - re[0].data.createTime) <=1000) {
+          // 拦截的错误类型加入黑名单
+          this.blackList.push(errId)
+          // 给record里这一类错误类型打上循环异常报错的标签
+          re.forEach(rr => {
+            this.record[rr.index].data.isCycle = true
+          })
+          return false
+        }
         return true
     }
 
@@ -471,7 +485,7 @@ class Sentry {
                   index += 1
                 }
               }
-          } 
+          }
           // console.log(el, '=======', evt.path, index)
           const path = evt.path.map(item=>item.localName).filter(i=> Boolean(i))
           // debugger
@@ -483,7 +497,7 @@ class Sentry {
            * 比如 ul里含有li和button，li:nth-child(1)正常
            * button:nth-child(1) 有问题，既子元素中含有不同的节点类型时会有问题。所以返回的select
            * 只能作为参考，不能直接作为选择器使用
-           * 
+           *
            */
           const select = `${path.reverse().join('>')}:${index+1}`
           // console.log(select, '====a=====')
@@ -499,23 +513,23 @@ class Sentry {
            * message 在响应接口时添加
            * Date.now() 返回的是毫秒，这里没必要返回毫秒数
           //  */
-          // {        
+          // {
           //   t: 'e',
-          //   d: hashId,    
+          //   d: hashId,
           //   errId,
           //   c: Date.now()
           // }
           {
-          
+
             type: 'e',
             data: {h: hashId, t: type},
             errId,
-            createTime: Math.floor(Date.now()/1000),
+            createTime: Date.now(),
             // message: '发生了一条错误'
           }
         )
     }
-    
+
     // 向行为栈中添加一条用户点击记录
     addClick(data) {
         this.record.push(
@@ -531,7 +545,7 @@ class Sentry {
             {
                 type: 'c',
                 data: data,
-                createTime: Math.floor(Date.now()/1000),
+                createTime: Date.now(),
                 // message: '执行了一条点击记录'
             }
         )
@@ -547,7 +561,7 @@ class Sentry {
           {
             type: 'r',
             data: url,
-            createTime: Math.floor(Date.now()/1000),
+            createTime: Date.now(),
             // message: '路由切换了'
           }
         )
