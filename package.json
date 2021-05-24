@@ -1,8 +1,8 @@
 {
   "name": "error-collection",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "description": "错误日志系统用户端sdk",
-  "main": "./src/index.js",
+  "main": "./dist/error-collection-umd",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "dev": "rollup -c -w",
