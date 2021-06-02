@@ -226,8 +226,44 @@ class Sentry {
             }
         }
         // ios直接拿得到column，line， soureUrl参数
+        /**
+         * 第一种类型错误
+         * 0: "Error: 自定义错误"
+         *  1: "    at r.value (http://localhost:3002/_next/static/erQN-y3_wsqT5FBdMKjv-/pages/test.js:1:982)"
+         *  2: "    at $a (http://localhost:3002/_next/static/chunks/vendors.9ec3ed5cd0924ed4d7b7.js:1:418831)"
+         *   3: "    at za (http://localhost:3002/_next/static/chunks/vendors.9ec3ed5cd0924ed4d7b7.js:1:421507)"
+         *   4: "    at http://localhost:3002/_next/static/chunks/vendors.9ec3ed5cd0924ed4d7b7.js:1:434736"
+         *   5: "    at Object.t.unstable_runWithPriority (http://localhost:3002/_next/static/chunks/vendors.9ec3ed5cd0924ed4d7b7.js:1:3961)"
+         *   6: "    at Ru (http://localhost:3002/_next/static/chunks/vendors.9ec3ed5cd0924ed4d7b7.js:1:434671)"
+         *   7: "    at Au (http://localhost:3002/_next/static/chunks/vendors.9ec3ed5cd0924ed4d7b7.js:1:434447)"
+         *   8: "    at Cu (http://localhost:3002/_next/static/chunks/vendors.9ec3ed5cd0924ed4d7b7.js:1:433792)"
+         *   9: "    at ku (http://localhost:3002/_next/static/chunks/vendors.9ec3ed5cd0924ed4d7b7.js:1:432813)"
+         *   10: "    at Qa (http://localhost:3002/_next/static/chunks/vendors.9ec3ed5cd0924ed4d7b7.js:1:431687)"
+         */
+
+        /**
+         * 第二种类型错误
+         * 0: "Error: qqqqq"
+         *   1: "    at http://localhost:3002/_next/static/erQN-y3_wsqT5FBdMKjv-/pages/test.js:1:889"
+         *   2: "    at Object.<anonymous> (http://localhost:3002/_next/static/chunks/vendors.9ec3ed5cd0924ed4d7b7.js:1:336943)"
+         *   3: "    at d (http://localhost:3002/_next/static/chunks/vendors.9ec3ed5cd0924ed4d7b7.js:1:336981)"
+         *   4: "    at http://localhost:3002/_next/static/chunks/vendors.9ec3ed5cd0924ed4d7b7.js:1:337619"
+         *   5: "    at E (http://localhost:3002/_next/static/chunks/vendors.9ec3ed5cd0924ed4d7b7.js:1:337708)"
+         *   6: "    at C (http://localhost:3002/_next/static/chunks/vendors.9ec3ed5cd0924ed4d7b7.js:1:338144)"
+         *   7: "    at O (http://localhost:3002/_next/static/chunks/vendors.9ec3ed5cd0924ed4d7b7.js:1:337956)"
+         *   8: "    at R (http://localhost:3002/_next/static/chunks/vendors.9ec3ed5cd0924ed4d7b7.js:1:339044)"
+         *   9: "    at kn (http://localhost:3002/_next/static/chunks/vendors.9ec3ed5cd0924ed4d7b7.js:1:366470)"
+         *   10: "    at Iu (http://localhost:3002/_next/static/chunks/vendors.9ec3ed5cd0924ed4d7b7.js:1:434861)"
+         */
+
+        /**
+         * 第一种错误最后有), 第二种错误最后没有), 所以解析时要考虑兼容性
+         */
         const stackArr = error.stack.split('\n')
-        const fileInfo = stackArr[1].split('/').pop().slice(0, -1)
+        let fileInfo = stackArr[1].split('/').pop()
+        if (fileInfo.slice(-1) === ')') {
+          fileInfo = fileInfo.slice(0, -1)
+        }
         const [file, line, column] = fileInfo.split(':');
         // console.log(file, line, column, error.message, error.name);
         return {
