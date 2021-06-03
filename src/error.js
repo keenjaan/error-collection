@@ -257,7 +257,19 @@ class Sentry {
          */
 
         /**
+         * 第三种情况错误
+         * 0: "Error: timeout of 6000ms exceeded"
+         *   1: "    at createError (webpack-internal:///./node_modules/axios/lib/core/createError.js:16:15)"
+         *   2: "    at XMLHttpRequest.handleTimeout (webpack-internal:///./node_modules/axios/lib/adapters/xhr.js:95:14)"
+         */
+
+        /**
          * 第一种错误最后有), 第二种错误最后没有), 所以解析时要考虑兼容性
+         */
+
+        /**
+         * 生成的map文件没有路径，只有最后一个文件名.map
+         * 所以截取时，只需要截取最后的文件名
          */
         const stackArr = error.stack.split('\n')
         let fileInfo = stackArr[1].split('/').pop()
