@@ -173,8 +173,10 @@ class Sentry {
              */
             if (err) {
               // 有正常的err错误对象
-              const error = _this.parseError(err)
-              _this.upload({message: error.message, name: error.name, source: error.sourceURL, colno: error.column, lineno: error.line})
+              if (_this.isError(err)) {
+                const error = _this.parseError(err)
+                _this.upload({message: error.message, name: error.name, source: error.sourceURL, colno: error.column, lineno: error.line})
+              }
             } else {
               // 内部报错没有err对象
               // 内部报错source 为当前页面地址，没有意义，所以上传空，后端处理时跳过源码解析阶段
