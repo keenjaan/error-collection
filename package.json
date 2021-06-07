@@ -1,6 +1,6 @@
 {
   "name": "error-collection",
-  "version": "0.0.7",
+  "version": "0.0.8",
   "description": "错误日志系统用户端sdk",
   "main": "./dist/error-collection-umd",
   "scripts": {

@@ -301,8 +301,8 @@ class Sentry {
             message: error.message,
             name: error.name,
             sourceURL: file,
-            line: line,
-            column: column
+            line: isNaN(+line) ? undefined : +line,
+            column: isNaN(+column) ? undefined: +column
         }
     }
     // 对外暴露的接口，接收err对象
