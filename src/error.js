@@ -103,19 +103,29 @@ class Sentry {
         const _this = this
         let _handleEvent = function (event) {
             if (event && event.currentTarget && event.currentTarget.status !== 200) {
-                if (event.type === 'error') {
+              if (event.type === 'error') {
                     // 服务器连不上，断网，跨域
                     console.log('断网,跨域')
                     /**
                      * 断网不能正常上传成功，所以能正常上传成功的是跨域或者服务器连接不上
                      */
                     // debugger
-                    _this.networkUpload({method: this.method, reqUrl: this.url, resCode: 0})
-                } else {
+                    _this.networkUpload({message: 'interface cors or can not connect to server', method: this.method, reqUrl: this.url, resCode: 0})
+              } else if (event.type === 'timeout') {
+                  // 超时
+                  console.log('超时')
+                  // debugger
+                  _this.networkUpload({message: 'interface timeout', method: this.method, reqUrl: this.url, resCode: 0})
+              } else if (event.type === 'abort') {
+                // 取消请求
+                  console.log('取消请求')
+                // debugger
+                  _this.networkUpload({message: 'interface had been abort', method: this.method, reqUrl: this.url, resCode: 0})
+              } else {
                     // 400， 500等状态错误
                     console.log('400,500')
                     _this.networkUpload({method: this.method, reqUrl: this.url, resCode: `${event.currentTarget.status}`})
-                }
+              }
                 // event.currentTarget 即为构建的xhr实例
                 // event.currentTarget.response
                 // event.currentTarget.responseURL || event.currentTarget.ajaxUrl
@@ -127,6 +137,8 @@ class Sentry {
             this.addEventListener('error', _handleEvent); // 失败
             this.addEventListener('load', _handleEvent);  // 完成
             this.addEventListener('abort', _handleEvent); // 取消
+            // 超时回调
+            // TODO
             return _oldSend.apply(this, arg);
         }
         xmlhttp.prototype.open = function (...arg) {
@@ -349,13 +361,13 @@ class Sentry {
         this.requestImg(query)
     }
     // 网络请求错误事件上报
-    networkUpload({method, reqUrl, resCode, level="error"}, {tag}={}) {
-        const errId = this.getErrId('network', {method, reqUrl, resCode, hashId})
+    networkUpload({message="interface response error", method, reqUrl, resCode, level="error"}, {tag}={}) {
+        const errId = this.getErrId('network', {message, method, reqUrl, resCode})
         // console.log('====', errId)
         const bool = this.shouldUpload(errId)
         if (!bool) return
         const hashId = this.getHashId()
-        const query = this.paramAssembly({type: 'network', message: `interface response error`, method, reqUrl, resCode, hashId, level}, {tag})
+        const query = this.paramAssembly({type: 'network', message, method, reqUrl, resCode, hashId, level}, {tag})
         this.addError(hashId, errId, 'n')
         this.requestImg(query)
     }
@@ -389,10 +401,10 @@ class Sentry {
         let errId = ''
         if (type === 'js') {
             errId = `${type}${message}${name}${source}${colno}${lineno}`
-        } else if (type === 'request') {
+        } else if (type === 'static') {
             errId = `${type}${reqUrl}${path}`
         } else if (type === 'network') {
-            errId = `${type}${reqUrl}${method}${resCode}`
+            errId = `${type}${message}${reqUrl}${method}${resCode}`
         }
         return errId
     }
