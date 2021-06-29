@@ -61,7 +61,7 @@ class Sentry {
                     if (op && op.method) {
                         method = op.method.toUpperCase()
                     }
-                    _this.networkUpload({method, reqUrl: arg[0], resCode: `${res.status}`})
+                    _this.networkUpload({message:res.statusText, method, reqUrl: arg[0], resCode: `${res.status}`})
                 }
                 return res;
             })
@@ -79,11 +79,14 @@ class Sentry {
                 if (op && op.method) {
                     method = op.method.toUpperCase()
                 }
-                _this.networkUpload({method, reqUrl: arg[0], resCode: 0})
+                _this.networkUpload({message:error.message, method, reqUrl: arg[0], resCode: 0})
                 /**
                  * fetch 错误虽然没有意思，但是不能吃掉，否则外层不能正常捕获错误。
+                 * 但是ios上fetch错误不是failed to fetch错误，统一拦截，不产生新错误.
+                 * 必须抛出错误，如果吞掉错误会导致，外层fetch的catch不能正常获取到错误
                  */
-                throw error;
+                // throw error;
+                throw new Error('Failed to fetch')
             })
         }
     }
@@ -187,19 +190,27 @@ class Sentry {
               // 有正常的err错误对象
               if (_this.isError(err)) {
                 const error = _this.parseError(err)
-                _this.upload({message: error.message, name: error.name, source: error.sourceURL, colno: error.column, lineno: error.line})
+                _this.upload({message: error.message, name: error.name, source: error.sourceURL, stack: error.stack, colno: error.column, lineno: error.line})
               }
             } else {
               // 内部报错没有err对象
               // 内部报错source 为当前页面地址，没有意义，所以上传空，后端处理时跳过源码解析阶段
               // 比如：ResizeObserver loop limit exceeded， colno: 0, lineno: 0
-              _this.upload({message, name: '', source: '', colno, lineno})
+              _this.upload({message, name: '', source: '',stack: 'null', colno, lineno})
             }
             // _this.upload(ob)
             // _this.upload({message, name: err.name, source, colno, lineno})
             // this.captureException({message,name: error.name, source, colno,lineno})
         }
         // 捕获没处理的promise错误
+        /**
+         * ios上跨域错误
+         * Origin http://xx.xx.xx:3001 is not allowed by Access-Control-Allow-Origin.
+         * Fetch API cannot load http://xx.xx.xx:8010/ due to access control checks.
+         * Failed to load resource: Origin http://xx.xx.xx:3001 is not allowed by Access-Control-Allow-Origin.
+         * 
+         * The error you provided does not contain a stack trace.
+         */
         window.addEventListener('unhandledrejection', event => {
             // debugger
             // failed to fetch 的promise错误没有任何有用信息，拦截上报。在fetch封装里上报能获取更详细的信息。
@@ -253,8 +264,19 @@ class Sentry {
                 name: error.name,
                 sourceURL: s,
                 line: error.line,
-                column: error.column
+                column: error.column,
+                stack: error.stack
             }
+        }
+        if (!error.stack){
+          return {
+            message: error.message,
+            name: error.name,
+            sourceURL: '',
+            line: 0,
+            column: 0,
+            stack: 'null'
+          }
         }
         // ios直接拿得到column，line， soureUrl参数
         /**
@@ -314,7 +336,8 @@ class Sentry {
             name: error.name,
             sourceURL: file,
             line: isNaN(+line) ? undefined : +line,
-            column: isNaN(+column) ? undefined: +column
+            column: isNaN(+column) ? undefined: +column,
+            stack: error.stack
         }
     }
     // 对外暴露的接口，接收err对象
@@ -327,7 +350,7 @@ class Sentry {
     errorUpload(err, {tag} = {}) {
         if (this.isError(err)) {
             const error = this.parseError(err)
-            this.upload({message: error.message, name: error.name, source: error.sourceURL, colno: error.column, lineno: error.line}, { tag })
+            this.upload({message: error.message, name: error.name, source: error.sourceURL, stack: error.stack, colno: error.column, lineno: error.line}, { tag })
         }
     }
     // 判断是否是error对象，不是error对象不上报
