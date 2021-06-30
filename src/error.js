@@ -361,14 +361,14 @@ class Sentry {
     }
 
     // js错误上报事件
-    upload({message, name, source, colno, lineno, level='error'}, { tag } = {}) {
+    upload({message, name, source, stack, colno, lineno, level='error'}, { tag } = {}) {
         // 读取当前页面url
         // const url = window.location.href
         const errId = this.getErrId('js', {message, name, source, colno, lineno})
         const bool = this.shouldUpload(errId)
         if (!bool) return
         const hashId = this.getHashId()
-        const query = this.paramAssembly({type: 'js', message, name, source, colno, lineno, level, hashId}, {tag})
+        const query = this.paramAssembly({type: 'js', message, name, source, stack, colno, lineno, level, hashId}, {tag})
         this.addError(hashId, errId, 'j')
         this.requestImg(query)
     }
