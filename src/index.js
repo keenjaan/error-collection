@@ -75,6 +75,17 @@ export const addClick = (data) => {
   wrap(() => instance.addClick(data))
 }
 
+// 向行为栈中添加一条滚动记录
+// export const addClick = (data) => {
+//   if (instance === null) {
+//     return console.error('需要先调用init方法初始化后，再调用该方法上报')
+//   }
+//   instance.addClick(data)
+// }
+export const addScroll = (data) => {
+  wrap(() => instance.addScroll(data))
+}
+
 // 向行为栈中添加一条路由切换记录
 // export const addRouterChange = url => {
 //   if (instance === null) {

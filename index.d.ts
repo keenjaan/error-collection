@@ -21,6 +21,8 @@ export const captureNetworkError: ({ method: string, reqUrl: string, resCode: st
 
 export const addClick: (data: object) => void
 
+export const addScroll: (data: object) => void
+
 export const addRouterChange: (url: string) => void
 
 export const addCustomRecord: ({type: string, data: object, message: string}) => void

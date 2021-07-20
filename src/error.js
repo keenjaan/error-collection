@@ -19,7 +19,7 @@ class Sentry {
         this.release = option.release
         this.environment = option.environment
         this.cElA = option.clickElementAttr
-        // this.rewriteEvent()
+        this.rewriteEvent()
         // 重写xhr和fetch api，拦截网络错误并上报
         if (!option.disableReqReport) {
             this.errorFetchInit()
@@ -29,6 +29,8 @@ class Sentry {
         this.errorListen()
         // 监听用户行为
         this.collectMess()
+        // 监听滚动
+        this.listenScroll()
     }
     // 初始化项目
     // init(option) {
@@ -156,52 +158,27 @@ class Sentry {
      * 因为js跨域报错，window.onerror 会将这类错误统一展示为 Script error
      * 但是try/catch 可以绕过
      */
-    // rewriteEvent() {
-    //     const originAddEventListener = EventTarget.prototype.addEventListener
-    //     EventTarget.prototype.addEventListener = (type, listener, options) => {
-    //         const wrappedListener = (...args) => {
-    //             try {
-    //                 return listener.apply(this, args)
-    //             } catch(err) {
-    //                 // 拿到err 信息 统一处理
-    //                 throw err
-    //             }
-    //         }
-    //         return originAddEventListener.call(this, type, wrappedListener, options)
+    rewriteEvent() {
+        const originAddEventListener = EventTarget.prototype.addEventListener
+        EventTarget.prototype.addEventListener = function (type, listener, options) {
+            const wrappedListener = (...args) => {
+                try {
+                    return listener.apply(this, args)
+                } catch(err) {
+                    // 拿到err 信息 统一处理
+                    throw err
+                }
+            }
+            return originAddEventListener.call(this, type, wrappedListener, options)
 
-    //     }
-    // }
+        }
+    }
     /**
      * 错误监听,全局错误监听，和没有处理的promise错误监听
      */
     errorListen() {
         const _this = this
-        // 全局js错误捕获
-        window.onerror = function(message, source, lineno, colno, err) {
-          // debugger
-            // console.log('----window.onerror----', message, source, lineno, colno, err)
-            // const s = source.split('/')
-            // console.log(s, '====')
-            /**
-             * onerror 的参数source包含域名，比如：
-             * http://baidu.com/js/app.0d18de06.js
-             */
-            if (err) {
-              // 有正常的err错误对象
-              if (_this.isError(err)) {
-                const error = _this.parseError(err)
-                _this.upload({message: error.message, name: error.name, source: error.sourceURL, stack: error.stack, colno: error.column, lineno: error.line})
-              }
-            } else {
-              // 内部报错没有err对象
-              // 内部报错source 为当前页面地址，没有意义，所以上传空，后端处理时跳过源码解析阶段
-              // 比如：ResizeObserver loop limit exceeded， colno: 0, lineno: 0
-              _this.upload({message, name: '', source: '',stack: 'null', colno, lineno})
-            }
-            // _this.upload(ob)
-            // _this.upload({message, name: err.name, source, colno, lineno})
-            // this.captureException({message,name: error.name, source, colno,lineno})
-        }
+        
         // 捕获没处理的promise错误
         /**
          * ios上跨域错误
@@ -237,9 +214,19 @@ class Sentry {
               // 上报资源地址
               let url = target.src || target.href;
               // console.log('===event====', event.path, url)
-              const elePath = event.path || (event.composedPath && event.composedPath()) || this.composedPath(event.target);
-              const path = elePath.map(item=>item.localName).filter(i=> Boolean(i))
-              _this.staticUpload({reqUrl: url, path: path.reverse().join(',')})
+              // const elePath = event.path || (event.composedPath && event.composedPath()) || this.composedPath(event.target);
+              // const path = elePath.map(item=>item.localName).filter(i=> Boolean(i))
+              const path = this.getCssSelector(event.target)
+              _this.staticUpload({reqUrl: url, path})
+            } else {
+              const err = event.error
+              if (err) {
+                if (_this.isError(err)) {
+                  const error = _this.parseError(err)
+                  _this.upload({message: error.message, name: error.name, source: error.sourceURL, stack: error.stack, colno: error.column, lineno: error.line})
+                }
+                event.error.stop = true
+              }
             }
             // 上报资源地址
             // let url = target.src || target.href;
@@ -250,6 +237,35 @@ class Sentry {
             // console.log(url);
             // return true
         }, true);
+
+        // 全局js错误捕获
+        window.onerror = function(message, source, lineno, colno, err) {
+          // debugger
+            // console.log('----window.onerror----', message, source, lineno, colno, err)
+            // const s = source.split('/')
+            // console.log(s, '====')
+            /**
+             * onerror 的参数source包含域名，比如：
+             * http://baidu.com/js/app.0d18de06.js
+             */
+            if (err) {
+              // addEventListener error上报了错误，此处终止上报行为
+              if (err.stop) return
+              // 有正常的err错误对象
+              if (_this.isError(err)) {
+                const error = _this.parseError(err)
+                _this.upload({message: error.message, name: error.name, source: error.sourceURL, stack: error.stack, colno: error.column, lineno: error.line})
+              }
+            } else {
+              // 内部报错没有err对象
+              // 内部报错source 为当前页面地址，没有意义，所以上传空，后端处理时跳过源码解析阶段
+              // 比如：ResizeObserver loop limit exceeded， colno: 0, lineno: 0
+              _this.upload({message, name: '', source: '',stack: 'null', colno, lineno})
+            }
+            // _this.upload(ob)
+            // _this.upload({message, name: err.name, source, colno, lineno})
+            // this.captureException({message,name: error.name, source, colno,lineno})
+        }
     }
     /**
      * 解析error对象，返回source，col，line，message， url等信息
@@ -574,6 +590,35 @@ class Sentry {
         el = el.parentElement;
       }
     }
+    /**
+     * 获取css选择器的字符串
+     * 
+     */
+    getCssSelector (el) {
+      var path = [];      
+      while (el) {     
+          // path.push(el);      
+          if (el.tagName === 'HTML') {      
+              // path.push({el: document});
+              // path.push({window});      
+              // return path;  
+            break;
+          }
+        var p = el.parentElement;
+        var n = [].indexOf.call(p.children, el)
+        path.push({el, n: n+1})
+        el = p
+      }
+      var selectorList = path.map(i => {
+        // console.log(i, '====0iii')
+        let e = i.el.localName
+        if (i.n) {
+          e = `${e}:nth-child(${i.n})`
+        }
+        return e
+      })
+      return selectorList.reverse().join('>')
+    }
 
     // 搜集用户行为数据
     collectMess() {
@@ -601,41 +646,70 @@ class Sentry {
                 }
               }
           }
-          // console.log(el, '=======', evt.path, index)
-          // function composedPath (el) {
-          //   var path = [];      
-          //   while (el) {     
-          //       path.push(el);      
-          //       if (el.tagName === 'HTML') {      
-          //           path.push(document);
-          //           path.push(window);      
-          //           return path;  
-          //       }
-          //     el = el.parentElement;
-          //   }
+          // const elePath = evt.path || (evt.composedPath && evt.composedPath()) || this.composedPath(evt.target);
+          // let select = ''
+          // if (elePath) {
+          //   const path = elePath.map(item=>item.localName).filter(i=> Boolean(i))
+          //   // debugger
+          //   // console.log(path, '78787877878')
+          //   path.splice(-2, 2)
+          //   // path.shift()
+          //   /**
+          //    * querySelect 方法在nth-child 使用时用问题，
+          //    * 比如 ul里含有li和button，li:nth-child(1)正常
+          //    * button:nth-child(1) 有问题，既子元素中含有不同的节点类型时会有问题。所以返回的select
+          //    * 只能作为参考，不能直接作为选择器使用
+          //    *
+          //    */
+          //   select = `${path.reverse().join('>')}:${index+1}`
           // }
-          const elePath = evt.path || (evt.composedPath && evt.composedPath()) || this.composedPath(evt.target);
-          let select = ''
-          if (elePath) {
-            const path = elePath.map(item=>item.localName).filter(i=> Boolean(i))
-            // debugger
-            // console.log(path, '78787877878')
-            path.splice(-2, 2)
-            // path.shift()
-            /**
-             * querySelect 方法在nth-child 使用时用问题，
-             * 比如 ul里含有li和button，li:nth-child(1)正常
-             * button:nth-child(1) 有问题，既子元素中含有不同的节点类型时会有问题。所以返回的select
-             * 只能作为参考，不能直接作为选择器使用
-             *
-             */
-            select = `${path.reverse().join('>')}:${index+1}`
-          }
+          const path = this.getCssSelector(evt.target)
           
           // console.log(select, '====a=====')
-          this.addClick(select)
+          this.addClick(path)
       }, true)
   }
+
+    // 滚动防抖
+    debounce(fn, delay) {
+      var timer; // 维护一个 timer
+      var start
+      return function (evt) {
+          var _this = this; // 取debounce执行作用域的this
+          // var args = [evt, ...arg];
+          if (!start) {
+            start = {
+              startTime: Date.now() 
+            }
+          }
+          if (timer) {
+              clearTimeout(timer);
+          }
+          timer = setTimeout(function () {
+            fn.call(_this, evt, {...start, endTimme: Date.now()}); // 用apply指向调用debounce的对象，相当于_this.fn(args);
+            start = null
+          }, delay);
+      };
+    }
+
+    // 监听用户滚动行为
+    listenScroll() {
+      const _this = this
+      const onScroll = this.debounce(function (evt, start) {
+        const gesture = {
+          ...start,
+          scrollTop: evt.target.scrollTop,
+          path: _this.getCssSelector(evt.target)
+        }
+        _this.addScroll(gesture)
+        // console.log('===target===', gesture)
+      }, 200)
+      document.addEventListener('scroll', evt => {
+        // console.log(touching, 'dfdfdf')
+        // const target = evt.target
+        onScroll(evt)
+      }, true)
+    }
 
     // 发生错误时记录
     addError(hashId, errId, type) {
@@ -697,6 +771,27 @@ class Sentry {
             // message: '路由切换了'
           }
         )
+    }
+
+    // 向行为栈中添加一条滚动记录
+    addScroll(data) {
+      this.record.push(
+        /**
+         * 为了缩短上传数据大小，字符串都使用简写，在响应时做数据转换
+         * message 在响应接口时添加
+         */
+        // {
+        //   t: 'c',
+        //   d: data,
+        //   c: Date.now()
+        // }
+          {
+              type: 's',
+              data: data,
+              createTime: Date.now(),
+              // message: '执行了一条点击记录'
+          }
+      )
     }
     // 自定义一种用户行为
     addCustomRecord({type, data, message}) {
