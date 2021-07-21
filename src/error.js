@@ -163,7 +163,12 @@ class Sentry {
         EventTarget.prototype.addEventListener = function (type, listener, options) {
             const wrappedListener = (...args) => {
                 try {
-                    return listener.apply(this, args)
+                    if (typeof listener.handleEvent != 'undefined') {
+                      return listener.handleEvent(...args);
+                    } else {
+                      return listener.apply(this, args);
+                    }
+                    // return listener.apply(this, args)
                 } catch(err) {
                     // 拿到err 信息 统一处理
                     throw err
