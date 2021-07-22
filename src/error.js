@@ -603,7 +603,7 @@ class Sentry {
       var path = [];      
       while (el) {     
           // path.push(el);      
-          if (el.tagName === 'HTML') {      
+          if (el===window.document || el.tagName === 'HTML') {      
               // path.push({el: document});
               // path.push({window});      
               // return path;  
@@ -622,7 +622,7 @@ class Sentry {
         }
         return e
       })
-      return selectorList.reverse().join('>')
+      return selectorList.reverse().join('>') || 'DOCUMENT'
     }
 
     // 搜集用户行为数据
