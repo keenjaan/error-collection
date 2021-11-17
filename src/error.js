@@ -174,8 +174,15 @@ class Sentry {
                     throw err
                 }
             }
+            listener._rewriteFn = wrappedListener
             return originAddEventListener.call(this, type, wrappedListener, options)
 
+        }
+
+        const originRemoveEventListener = EventTarget.prototype.removeEventListener
+        EventTarget.prototype.removeEventListener = function (type, listener, options) {
+            const listen = listener._rewriteFn || listener
+            return originRemoveEventListener.call(this, type, listen, options)
         }
     }
     /**
