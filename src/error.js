@@ -1,8 +1,5 @@
-import {deflate} from 'pako'
-// import * as deflate from 'pako/dist/pako_deflate.es5.js'
-// import deflate from 'pako/dist/pako_deflate.js'
+import {deflate} from 'pako/dist/pako_deflate.es5.js'
 
-// console.log(deflate)
 
 /* eslint-disable no-debugger */
 class Sentry {
@@ -521,6 +518,7 @@ class Sentry {
         query.record = r.slice(-200)
         // console.log(query, '909090')
         // var output = window.pako.deflate(JSON.stringify(query));
+        console.log('deflate debuging........qqqqqqq')
         var output = deflate(JSON.stringify(query));
         // console.log(output, '===output===')
         // var ascii = new Uint8Array(output);
