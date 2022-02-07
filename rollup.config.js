@@ -4,6 +4,8 @@ import commonjs from '@rollup/plugin-commonjs';
 import { terser } from "rollup-plugin-terser";
 import os, { type } from 'os';
 import pkg from './package.json'
+
+// https://github.com/maomao1996/daily-notes/issues/9
   
 const cpuNums = os.cpus().length;
 

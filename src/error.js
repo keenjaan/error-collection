@@ -69,7 +69,7 @@ class Sentry {
                 // debugger
                 // console.log(error.message, '=====')
                 // 服务连不上，跨域，断网请求错误会到这里
-                // 断网不能正常上传成功
+                // 但是断网不能正常上传成功, 所以真正收集到的错误只有跨域和网络较差，连接不上超时的情况
                 // error.message,
                 // error.stack
                 // 抛出错误并且上报
@@ -199,6 +199,7 @@ class Sentry {
          */
         window.addEventListener('unhandledrejection', event => {
             // debugger
+            // fetch在服务连不上，超时和跨域情况下会报该错误
             // failed to fetch 的promise错误没有任何有用信息，拦截上报。在fetch封装里上报能获取更详细的信息。
             if (event.reason.message === 'Failed to fetch') return
             // TODO
